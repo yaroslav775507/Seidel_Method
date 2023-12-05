@@ -1,12 +1,24 @@
 package org.example;
 
+import org.knowm.xchart.*;
+import org.knowm.xchart.style.Styler;
+
+import javax.swing.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.knowm.xchart.XChartPanel;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYSeries;
+import org.knowm.xchart.XYSeries.XYSeriesRenderStyle;
 
 public class SLAE {
-    private int n;
-    private double[][] A;
-    private double[] B;
-    private int[] permut;
-    private double epsilon;
+    private final int n;
+    private final double[][] A;
+    private final double[] B;
+    private final int[] permut;
+    private final double epsilon;
 
     public SLAE(int n, double epsilon) {
         this.n = n;
@@ -15,7 +27,6 @@ public class SLAE {
         B = new double[n];
         permut = new int[n];
 
-        // Initialize A, B, and permut arrays
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 A[i][j] = 0.0;
@@ -38,7 +49,6 @@ public class SLAE {
     }
 
     public int solveZeidel(double[] X, double p, int maxIterations) {
-        // Check convergence condition
         for (int i = 0; i < n; i++) {
             double sum = 0.0;
             for (int j = 0; j < n; j++) {
@@ -47,17 +57,13 @@ public class SLAE {
                 }
             }
             if (sum >= Math.abs(get(i, i))) {
-                // Convergence condition not satisfied
                 return -1;
             }
         }
-
-        // Initialize X0 = B
         System.arraycopy(B, 0, X, 0, n);
 
         int iterations = 0;
         while (!isZero(discrepancy(X))) {
-            // Iteration
             for (int i = 0; i < n; i++) {
                 double sum = 0.0;
                 for (int j = 0; j < n; j++) {
@@ -84,7 +90,7 @@ public class SLAE {
     public void print() {
         for (int y = 0; y < n; y++) {
             for (int x = 0; x < n; x++) {
-                System.out.printf("%+f x%d%f", get(x, y), (x + 1),(x == 3));
+                System.out.printf("%+f x%d%f", get(x, y), (x + 1), (x == 3));
             }
             System.out.printf("= %f\n", B[y]);
         }
@@ -112,28 +118,55 @@ public class SLAE {
 
     public static void main(String[] args) {
         double[] A = {
-                -16.0, 1.0, 9.0, 4.0,
-                9.0, 14.0, 2.0, -1.0,
-                -7.0, 1.0, 13.0, 4.0,
-                3.0, 0.0, -8.0, -12.0
+                15.0, 7.0, 2.0, 1.0,
+                -3.0, 23.0, 6.0, 2.0,
+                2.0, -5.0, -21.0, 7.0,
+                -2.0, 1.0, 7.0, 20.0
         };
-        double[] B = {34.0, 67.0, 38.0, -68.0};
+        double[] B = {19.0, 0.0, -44.0, 21.0};
         double[] X = new double[4];
 
         SLAE system = new SLAE(4, 0.001);
         system.setA(A);
         system.setB(B);
 
-        for (double p = 0.0; p <= 1.0; p += 0.01) {
+        List<Double> pValues = new ArrayList<>();
+        List<Integer> iterationsValues = new ArrayList<>();
+        List<Double> normValues = new ArrayList<>();
+        for (double p = -1.0; p <= 1.0; p += 0.01) {
             System.out.printf("p=%.2f\n", p);
             int iter = system.solveZeidel(X, p, 100);
+            double norm = system.discrepancy(X);
+            double roundedP = Math.round(p * 10.0) / 10.0;
+            pValues.add(roundedP);
+            //pValues.add(p);
+            iterationsValues.add(iter);
+            normValues.add(norm);
+
             if (iter != -1) {
-                System.out.printf("\tSolution obtained in %d iterations\n", iter);
-                System.out.printf("\tSolution: [%f %f %f %f]\n", X[0], X[1], X[2], X[3]);
-                System.out.printf("\tDiscrepancy norm: %f\n", system.discrepancy(X));
+                System.out.printf("\tРешение получено за %d итераций\n", iter);
+                System.out.printf("\tРешение: [%f %f %f %f]\n", X[0], X[1], X[2], X[3]);
+                System.out.printf("\tНорма невязки: %f\n", norm);
             } else {
-                System.out.println("\tConvergence not observed");
+                System.out.println("\tСходимости не наблюдается");
             }
+
         }
+        SwingUtilities.invokeLater(() -> {
+            XYChart chart = new XYChartBuilder().width(1000).height(1000).title("Зависимость итераций от ускоряющего элемента").xAxisTitle("Ускоряющий параметр P").yAxisTitle("Количество итераций").build();
+
+            chart.getStyler().setDefaultSeriesRenderStyle(XYSeriesRenderStyle.Line);
+            chart.getStyler().setChartTitleVisible(true);
+            chart.getStyler().setLegendPosition(Styler.LegendPosition.InsideNW);
+// TODO: 04.12.2023 Округлить метод pValues
+            XYSeries series = chart.addSeries("Iterations vs. p", pValues, iterationsValues);
+
+            JFrame frame = new JFrame("Chart");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.getContentPane().add(new XChartPanel<>(chart));
+            frame.pack();
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
+        });
     }
 }
